@@ -143,12 +143,17 @@ subagents.
    the same session (`--session <threadId>` from `result.json`).
 5. **Verify.** Do not trust the worker's report. Check `touchedFiles` against the plan, read the
    diff stat, and run the project's check commands yourself.
-6. **Review.** Run `loop-code-review` on all task changes. Without it, start a reviewer with a fresh
-   context (a subagent of your agent, or a new read-only Codex run) and give it the diff, the
-   project rules, and the check commands, but not the plan. Send accepted findings to the
-   Implementer in the same session, then verify and review again. Repeat until the checks pass and
-   the review has no accepted findings. There is no round limit. Do not change the Implementer's
-   model or effort between rounds.
+6. **Review.** Review is a loop that you run. Each pass is one `loop-code-review` round in
+   **find-only** mode: tell it to find and judge the findings, not to fix them, to stop after this one
+   round (skip its fix step and its round cap), and to return the accepted findings to you. Without
+   `loop-code-review`, start a reviewer with a fresh context (a subagent of your agent, or a new
+   read-only Codex run) and give it the diff, the project rules, and the check commands. Do not give
+   reviewers the plan. Pass 1 reviews all task changes. Later passes review only the ranges that the
+   last fix changed (a full round again at high risk).
+   - Accepted findings: send them to the Implementer in the same session. The Implementer fixes, not
+     the reviewers. Then run step 5 again and start the next pass.
+   - Repeat until the checks pass and a pass returns no accepted findings. There is no round limit.
+   - Do not change the Implementer's model or effort between rounds.
 7. **Accept.** Compare the result with the plan's definition of done. If the scope or risk grew,
    stop and ask the user.
 8. **Commit.** Stage only the task files by name. One commit per subtask or one for the task, in
