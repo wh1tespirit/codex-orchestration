@@ -146,8 +146,9 @@ subagents.
 6. **Review.** Run `loop-code-review` on all task changes. Without it, start a reviewer with a fresh
    context (a subagent of your agent, or a new read-only Codex run) and give it the diff, the
    project rules, and the check commands, but not the plan. Send accepted findings to the
-   Implementer in the same session. Allow two fix rounds. If it still fails, **stop and report** to
-   the user. Do not change the Implementer's model or effort.
+   Implementer in the same session, then verify and review again. Repeat until the checks pass and
+   the review has no accepted findings. There is no round limit. Do not change the Implementer's
+   model or effort between rounds.
 7. **Accept.** Compare the result with the plan's definition of done. If the scope or risk grew,
    stop and ask the user.
 8. **Commit.** Stage only the task files by name. One commit per subtask or one for the task, in

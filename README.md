@@ -14,7 +14,7 @@ approved plan
   → Researcher: reads and searches the code (read-only)
   → Implementer: writes the code, delegates small lookups to its own subagents
   → lead verifies: touched files, diff, project checks
-  → fresh reviewer checks the change (up to 2 fix rounds)
+  → fresh reviewer checks the change (fix and re-review until clean)
   → lead accepts against the plan's definition of done
   → lead commits the task files
   → merge --no-ff into dev (or main), remove worktree and branch
@@ -39,7 +39,7 @@ A Codex usage limit does not stop the run. The skill detects the limit error fro
 - **Lower cost.** The most expensive model decides and checks. It does not spend tokens on searching and typing code.
 - **Independent checks.** The lead never trusts a worker's own report. It re-runs the project checks and reads the diff. A reviewer with fresh context looks at the change without the plan.
 - **A clean repository.** One branch and one worktree per feature, not per task. After the merge, both are removed with the safe `git branch -d`. Files that were already dirty before the run are never staged.
-- **Predictable behavior.** The skill never changes a worker's model or effort by itself. If two fix rounds fail, it stops and reports.
+- **Predictable behavior.** The skill never changes a worker's model or effort by itself. Fix rounds repeat until the checks and the review pass, with no round limit.
 - **You control the money.** You set the model and effort of each role in a request or in a small JSON file.
 
 ## Requirements
