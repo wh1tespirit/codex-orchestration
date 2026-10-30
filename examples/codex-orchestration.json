@@ -4,5 +4,6 @@
   "fallback": {
     "researcher":  { "model": "haiku" },
     "implementer": { "model": "sonnet" }
-  }
+  },
+  "guard": { "stuckPasses": 3, "maxReviewPasses": 10 }
 }

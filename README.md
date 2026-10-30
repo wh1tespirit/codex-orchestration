@@ -39,7 +39,7 @@ A Codex usage limit does not stop the run. The skill detects the limit error fro
 - **Lower cost.** The most expensive model decides and checks. It does not spend tokens on searching and typing code.
 - **Independent checks.** The lead never trusts a worker's own report. It re-runs the project checks and reads the diff. A reviewer with fresh context looks at the change without the plan.
 - **A clean repository.** One branch and one worktree per feature, not per task. After the merge, both are removed with the safe `git branch -d`. Files that were already dirty before the run are never staged.
-- **Predictable behavior.** The skill never changes a worker's model or effort by itself. Fix rounds repeat until the checks and the review pass, with no round limit.
+- **Predictable behavior.** The skill never changes a worker's model or effort by itself. Fix rounds repeat until the checks and the review pass. A stuck-task guard stops a run that makes no progress (see Settings).
 - **You control the money.** You set the model and effort of each role in a request or in a small JSON file.
 
 ## Requirements
@@ -126,6 +126,8 @@ Order of priority: the request text, then `.codex-orchestration.json` in the rep
 ```
 
 `fallback` names the Claude models used when Codex hits its usage limit. Use `"fallback": false` to turn it off.
+
+`guard` (optional) protects against a task that never converges: `{ "stuckPasses": 3, "maxReviewPasses": 10 }`. The run stops and reports when the same finding or failing check appears in `stuckPasses` passes in a row, when the number of open findings has not gone down for `stuckPasses` passes, or when `maxReviewPasses` passes are reached. Set a value to `null` to turn that check off. On a stop the skill does not merge and does not remove the branch and worktree.
 
 Lower the effort to spend less on a small subscription, or raise it for hard tasks. The skill checks the values with `codex debug models` before it starts. If a model or an effort is not available, it stops and asks you. It never swaps them silently.
 

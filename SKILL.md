@@ -64,6 +64,9 @@ File format (see `examples/codex-orchestration.json`):
 ```
 Set `"fallback": false` to turn the fallback off (see "Codex limit fallback").
 
+Stuck guard (see step 6), optional keys: `"guard": { "stuckPasses": 3, "maxReviewPasses": 10 }`.
+`stuckPasses` is at least 2. Set a value to `null` to turn that check off.
+
 The default models match the Codex model list at the time of writing. If a model is not on the
 user's list, the user sets the roles in the file or in the request.
 
@@ -154,6 +157,16 @@ subagents.
      the reviewers. Then run step 5 again and start the next pass.
    - Repeat until the checks pass and a pass returns no accepted findings. There is no round limit.
    - Do not change the Implementer's model or effort between rounds.
+   - **Stuck guard.** Keep a short ledger in your notes. One row per accepted finding or failing
+     check: a key (file, symbol, one-line issue; or the check name) and the number of passes in a
+     row that it appeared. A failed step 5 counts as a pass too. **Stop and report** when:
+     (a) one key appeared in `stuckPasses` passes in a row (default 3): the Implementer cannot fix it;
+     (b) the number of open rows did not go down for `stuckPasses` passes in a row: fixes break other
+     things, or the work goes in a circle; or
+     (c) the number of passes reaches `maxReviewPasses` (default 10).
+     On a stop: do not merge, do not clean up the branch and worktree, and do not change the model or
+     effort. Report the ledger, the failing checks, the diff stat, and the options for the user
+     (more passes, a changed plan, a manual fix, or drop the work).
 7. **Accept.** Compare the result with the plan's definition of done. If the scope or risk grew,
    stop and ask the user.
 8. **Commit.** Stage only the task files by name. One commit per subtask or one for the task, in
