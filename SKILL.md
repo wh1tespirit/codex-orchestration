@@ -5,6 +5,8 @@ description: >-
   is the lead and does not read or write code. Codex workers do the code work: a lighter model
   reads and searches, a stronger model writes the code. A fresh reviewer checks the result, and the
   lead commits and merges into dev (or main) and removes the temporary branch and worktree.
+  If Codex hits its usage limit during the run, the work continues with Claude subagents
+  (Haiku for research, Sonnet for code).
   Use when the user asks for codex-orchestration, or asks to run a plan through Codex workers.
 license: MIT
 compatibility: >-
@@ -12,7 +14,7 @@ compatibility: >-
   OpenCode, Hermes Agent, and others), plus git, Node 18+, and the Codex CLI (`codex`),
   installed and authenticated. Requires the codex-delegate skill.
 metadata:
-  version: 0.1.0
+  version: 0.2.0
 ---
 
 ## Goal
@@ -51,20 +53,63 @@ Defaults. The user can change any value; the first source that has a value wins:
 | Researcher (read-only) | `gpt-6-luna` | `xhigh` |
 | Implementer | `gpt-6.1-sol` | `high` |
 | Implementer's subagents | `gpt-6-luna` | the Researcher's effort |
+| Fallback Researcher (Codex limit) | Claude `haiku` (Haiku 5.5) | the agent's default |
+| Fallback Implementer (Codex limit) | Claude `sonnet` (Sonnet 5.5) | the agent's default |
 
 File format (see `examples/codex-orchestration.json`):
 ```json
 { "researcher":  { "model": "gpt-6-luna",  "effort": "medium" },
-  "implementer": { "model": "gpt-6.1-sol", "effort": "medium" } }
+  "implementer": { "model": "gpt-6.1-sol", "effort": "medium" },
+  "fallback": { "researcher": { "model": "haiku" }, "implementer": { "model": "sonnet" } } }
 ```
+Set `"fallback": false` to turn the fallback off (see "Codex limit fallback").
 
 The default models match the Codex model list at the time of writing. If a model is not on the
 user's list, the user sets the roles in the file or in the request.
 
 Before the first run, check that each model and effort exists: `codex debug models`.
 If one does not exist, stop and tell the user. **Never change the model or the effort of the
-Researcher and the Implementer by yourself, not on a failure and not to save cost.**
+Researcher and the Implementer by yourself, not on a failure and not to save cost.** The only
+exception is the Codex limit fallback below, and it changes the provider, not the Codex settings.
 The reviewer follows its own skill's settings; do not limit them.
+
+## Codex limit fallback
+
+When Codex stops because of a usage limit, the run does not stop. The remaining work goes to Claude
+subagents.
+
+**Detect.** A relay run ends with `status: failed` (or `completed` with no work done), and
+`stderrTail`, `finalMessage`, or the events log say that a usage, rate, or credit limit is reached
+(for example "hit your usage limit", "rate limit", "quota"). Other failures (`timeout`, `aborted`,
+`codex_unavailable`, an auth error, a crash) are not a limit: handle them as usual.
+
+**Switch.**
+
+| Role | Codex | Fallback |
+|---|---|---|
+| Researcher | `gpt-6-luna` | Claude `haiku` (Haiku 5.5, read-only) |
+| Implementer | `gpt-6.1-sol` | Claude `sonnet` (Sonnet 5.5) |
+
+- Switch once. After the first limit error, send all later worker tasks of this run to the Claude
+  workers: research, remaining subtasks, and fix rounds. Do not try Codex again in this run. A new
+  run starts with Codex again.
+- Start each fallback worker as a fresh subagent in the same repository or worktree, with the
+  subagent tool of your agent. In Claude Code: the Agent tool, `subagent_type: general-purpose`,
+  `model: haiku` or `model: sonnet`. Use the model aliases; they resolve to `claude-haiku-5-5` and
+  `claude-sonnet-5-5`. Set no effort unless the user named one.
+- A Codex session cannot be resumed by Claude. Hand over the work in the new brief: the plan, the
+  brief rules from the `codex-delegate` skill, and what is already done (`touchedFiles`, the diff
+  stat, the last `finalMessage`, the subtask that stopped). Tell the worker to continue from the
+  current tree and not to restart or revert existing changes.
+- The same limits apply as for Codex workers: do not commit, do not push, do not touch the baseline
+  files. The lead still does not edit code, and still runs step 5 on every result.
+- The reviewer is not affected. If the reviewer was a Codex run, use a Claude reviewer with a fresh
+  context.
+- Say it in one line when you switch: "Codex limit reached, continuing with Claude Haiku and Sonnet
+  subagents." Add the reset time if the message gives one.
+- **Stop and report** (state of `git status`, what is done, what is not) if: `"fallback": false`; your
+  agent cannot start Claude subagents; or the Claude worker cannot start or is also limited. Never do
+  the code work yourself.
 
 ## Rules
 
@@ -119,6 +164,6 @@ The reviewer follows its own skill's settings; do not limit them.
 
 Report: the result, the checks that ran, the commits, the merge target, what was cleaned up, the
 baseline files that were left untouched, unresolved issues, and the cost (workers, rounds, models,
-efforts). State that a push was not done unless the user allowed it.
+efforts). If the Codex limit fallback ran, say which subtasks Codex did and which Claude did. State that a push was not done unless the user allowed it.
 If the user's language is Russian and the `asd-ste100-ru` skill is installed, write the report with
 it. Otherwise write short, plain sentences in the user's language.

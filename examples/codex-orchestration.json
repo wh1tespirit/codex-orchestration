@@ -1,4 +1,8 @@
 {
   "researcher":  { "model": "gpt-6-luna",  "effort": "medium" },
-  "implementer": { "model": "gpt-6.1-sol", "effort": "medium" }
+  "implementer": { "model": "gpt-6.1-sol", "effort": "medium" },
+  "fallback": {
+    "researcher":  { "model": "haiku" },
+    "implementer": { "model": "sonnet" }
+  }
 }

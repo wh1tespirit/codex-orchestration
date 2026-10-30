@@ -4,7 +4,7 @@ An agent skill that turns your main AI agent into a **lead** and sends the code 
 
 The skill follows the open [Agent Skills](https://agentskills.io/) format (`SKILL.md`). It is written for Claude Code, Codex CLI, OpenCode, Hermes Agent, and any other agent that loads `SKILL.md` skills and can run shell commands.
 
-> **Status:** version 0.1.0. The skill text is complete, but it has not yet been run end to end on a real project, and it has not been tested in every agent listed above. Treat the first run as a trial and read the report.
+> **Status:** version 0.2.0. The skill text is complete, but it has not yet been run end to end on a real project, and it has not been tested in every agent listed above. Treat the first run as a trial and read the report.
 
 ## What it does
 
@@ -27,6 +27,12 @@ approved plan
 | Researcher | `gpt-6-luna` | `xhigh` | Finds files and code paths. Read-only. |
 | Implementer | `gpt-6.1-sol` | `high` | Writes the code. Hands lookups to subagents. |
 | Reviewer | set by your review skill | — | Checks the change without seeing the plan. |
+| Fallback Researcher | Claude `haiku` (Haiku 5.5) | agent default | Takes over research if Codex hits its usage limit. |
+| Fallback Implementer | Claude `sonnet` (Sonnet 5.5) | agent default | Takes over coding if Codex hits its usage limit. |
+
+### If Codex runs out of limits
+
+A Codex usage limit does not stop the run. The skill detects the limit error from the relay result and sends the rest of the work to Claude subagents: Haiku reads and searches, Sonnet writes the code. The switch happens once per run, the new worker continues from the current working tree (it does not start over), and the same rules hold: no commits by workers, the lead re-verifies every result, and the reviewer is unchanged. The report says which part Codex did and which part Claude did. If your agent cannot start Claude subagents, or you set `"fallback": false`, the skill stops and reports the state instead.
 
 ## Why use it
 
@@ -111,9 +117,15 @@ Order of priority: the request text, then `.codex-orchestration.json` in the rep
 ```json
 {
   "researcher":  { "model": "gpt-6-luna",  "effort": "medium" },
-  "implementer": { "model": "gpt-6.1-sol", "effort": "medium" }
+  "implementer": { "model": "gpt-6.1-sol", "effort": "medium" },
+  "fallback": {
+    "researcher":  { "model": "haiku" },
+    "implementer": { "model": "sonnet" }
+  }
 }
 ```
+
+`fallback` names the Claude models used when Codex hits its usage limit. Use `"fallback": false` to turn it off.
 
 Lower the effort to spend less on a small subscription, or raise it for hard tasks. The skill checks the values with `codex debug models` before it starts. If a model or an effort is not available, it stops and asks you. It never swaps them silently.
 
@@ -130,6 +142,7 @@ Lower the effort to spend less on a small subscription, or raise it for hard tas
 
 - Codex CLI is required for the workers. The lead can be any agent, but Codex workers use your OpenAI account and its limits.
 - If Codex itself is the lead, background waiting needs the `codex-background` helper from the `codex-delegate` author. This path is untested here.
+- The Codex limit fallback needs an agent that can start Claude subagents (for example Claude Code). Other agents stop and report instead. Limit detection reads the relay's error text and has not been tested against every wording of Codex limit messages.
 - The default model names depend on your Codex model list. Set your own names if they differ.
 - Dependencies are third-party skills. Review them before you install, as you would any code that runs with your agent's permissions.
 
